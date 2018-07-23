@@ -137,7 +137,10 @@ jobs:
       - persist_to_workspace:
           root: build
           paths:
-            - "*"
+            - solc/solc
+            - test/soltest
+            - test/tools/solfuzzer
+            - "*.gcda"
 
   build_x86_mac:
     macos:
