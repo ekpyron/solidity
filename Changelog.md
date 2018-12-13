@@ -1,4 +1,6 @@
-### 0.5.2 (unreleased)
+### 0.5.2 (2018-12-13)
+
+FAKE RELEASE
 
 Language Features:
  * Control Flow Graph: Detect every access to uninitialized storage pointers.
