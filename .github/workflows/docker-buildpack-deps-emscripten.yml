@@ -1,0 +1,26 @@
+name: Build solidity-buildpack-deps:emsdk Docker Image
+on:
+  pull_request:
+    paths:
+      - 'scripts/docker/buildpack-deps/Dockerfile.emscripten'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Build emscripten/emsdk base Docker image
+      run: |
+        export EMSDK_VERSION=$(grep "emscripten/emsdk" scripts/docker/buildpack-deps/Dockerfile.emscripten | cut -f 2 -d ' ' | cut -f 2 -d ':')
+        git clone https://github.com/emscripten-core/emsdk/ /tmp/emsdk
+        make -C /tmp/emsdk/docker version=${EMSDK_VERSION} build
+    - name: Build solidity-buildpack-deps:emsdk Docker image
+      run: docker build scripts/docker/buildpack-deps --file scripts/docker/buildpack-deps/Dockerfile.emscripten --tag solidity-buildpack-deps:emsdk
+    - name: Push
+      run: |
+        export EMSDK_VERSION=$(grep "emscripten/emsdk" scripts/docker/buildpack-deps/Dockerfile.emscripten | cut -f 2 -d ' ' | cut -f 2 -d ':')
+        echo ${GITHUB_TOKEN} | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
+        export VERSION=$(docker inspect --format="{{.Config.Labels.version}}" solidity-buildpack-deps:emsdk)
+        docker tag solidity-buildpack-deps:emsdk docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION}
+        docker push docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
