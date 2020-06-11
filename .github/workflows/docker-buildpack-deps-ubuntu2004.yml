@@ -1,0 +1,22 @@
+env:
+  UBUNTU_VERSION: 2004
+name: Build solidity-buildpack-deps:ubuntu${UBUNTU_VERSION} Docker Image
+on:
+  push:
+    paths:
+      - 'scripts/docker/buildpack-deps/Dockerfile.ubuntu${UBUNTU_VERSION}'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Build solidity-buildpack-deps:ubuntu${UBUNTU_VERSION} Docker image
+      run: docker build scripts/docker/buildpack-deps --file scripts/docker/buildpack-deps/Dockerfile.ubuntu${UBUNTU_VERSION} --tag solidity-buildpack-deps:ubuntu${UBUNTU_VERSION}
+    - name: Push
+      run: |
+        echo ${GITHUB_TOKEN} | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
+        export VERSION=$(docker inspect --format="{{.Config.Labels.version}}" solidity-buildpack-deps:ubuntu${UBUNTU_VERSION})
+        docker tag solidity-buildpack-deps:ubuntu${UBUNTU_VERSION} docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:ubuntu${UBUNTU_VERSION}-${VERSION}
+        docker push docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:ubuntu${UBUNTU_VERSION}-${VERSION}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
