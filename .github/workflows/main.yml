@@ -9,21 +9,28 @@ on:
 jobs:
   build_ubuntu2004:
     runs-on: ubuntu-latest
+    container: solidity-buildpack-deps:ubuntu2004-2
     steps:
-    - name: Docker Cache
-      id: docker-cache
-      uses: actions/cache@v2
-      with:
-        path: /var/lib/docker
-        key: ${{ runner.os }}-docker
-    - uses: actions/checkout@v2
-    - name: Prepare Docker
-      run: |
-        echo ${GITHUB_TOKEN} | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
-        docker pull docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:ubuntu2004-1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Run
-      run: |
-        echo "Test"
-        docker run -v `pwd`:/root/project docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:ubuntu2004-1 /root/project/.github/scripts/build_ubuntu.sh
+      - uses: actions/checkout@v2
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake .. -G Ninja
+          ninja
+      - name: Store Artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: build_ubuntu2004
+          path: build/
+  test_ubuntu2004:
+    needs: build_ubuntu2004
+    runs-on: ubuntu-latest
+    container: solidity-buildpack-deps:ubuntu2004-2
+    steps:
+      - name: Attach build
+        uses: actions/download-artifact@v1
+        with:
+          name: build_ubuntu2004
+      - name: soltest
+        run: |
+          build/test/soltest --show-progress --logger=JUNIT,error,test_results/soltest.xml
