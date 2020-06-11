@@ -1,0 +1,29 @@
+name: CI Tests
+
+on:
+#  push:
+#    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  build_ubuntu2004:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Docker Cache
+      id: docker-cache
+      uses: actions/cache@v2
+      with:
+        path: /var/lib/docker
+        key: ${{ runner.os }}-docker
+    - uses: actions/checkout@v2
+    - name: Prepare Docker
+      run: |
+        echo ${GITHUB_TOKEN} | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
+        docker pull docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:ubuntu2004-1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Run
+      run: |
+        echo "Test"
+        docker run -v `pwd`:/root/project docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:ubuntu2004-1 /root/project/.github/scripts/build_ubuntu.sh
