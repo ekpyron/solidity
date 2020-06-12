@@ -39,20 +39,21 @@ jobs:
       - uses: actions/checkout@v2
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.0
-      - name: Install Deps
-        shell: cmd
-        run: ./scripts/install_deps.bat
+#      - name: Install Deps
+#        shell: cmd
+#        run: ./scripts/install_deps.bat
       - name: Build
         run: |
-          set ETHEREUM_DEPS_PATH=$Env:GITHUB_WORKSPACE\deps\install
-          echo "Deps path: %ETHEREUM_DEPS_PATH%"
+          echo "Deps path: ${env:GITHUB_WORKSPACE}"
           mkdir build
           cd build
-          cmake .. -DTESTS=On -DCMAKE_INSTALL_PREFIX="../upload"
+          cmake .. -DTESTS=On -DCMAKE_INSTALL_PREFIX="${env:GITHUB_WORKSPACE}\upload"
           msbuild solidity.sln /p:Configuration=Release /v:minimal
           cmake --build . --target install --config Release
       - name: Pack Release
-        run: Compress-Archive -Path $Env:GITHUB_WORKSPACE\upload\* -DestinationPath solidity-windows.zip
+        run: |
+          Compress-Archive -Path ${env:GITHUB_WORKSPACE}\upload\bin\* -DestinationPath solidity-windows.zip
+          Compress-Archive -Path ${env:GITHUB_WORKSPACE}\build\test\Release\soltest.exe -Update -DestinationPath solidity-windows.zip
       - name: Store Artifacts
         uses: actions/upload-artifact@v1
         with:
