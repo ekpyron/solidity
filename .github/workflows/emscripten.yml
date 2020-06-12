@@ -24,7 +24,10 @@ jobs:
         run: |
           docker run -v `pwd`:/root/project -w /root/project emsdk ./scripts/travis-emscripten/build_emscripten.sh
       - name: Store Version
-        run: echo "::set-output name=version::$(scripts/get_version.sh)"
+        run: |
+                scripts/get_version.sh
+                echo "Version: $(scripts/get_version.sh)"
+                echo "::set-output name=version::$(scripts/get_version.sh)"
       - name: Store Artifacts
         uses: actions/upload-artifact@v1
         with:
@@ -37,11 +40,15 @@ jobs:
       - uses: actions/checkout@v2
         with:
           path: 'solidity'
+      - name: Debug Output
+        run: |
+          echo ${{ needs.build_emscripten.outputs.version }}
+          echo "Version: ${{ needs.build_emscripten.outputs.version }}"
+          echo 'Version: ${{ needs.build_emscripten.outputs.version }}'
       - uses: actions/checkout@v2
         with:
           repository: 'ethereum/solc-js'
-#          ref: 'v${{ needs.build_emscripten.outputs.version }}'
-          ref: 'v0.6.9'
+          ref: v${{ needs.build_emscripten.outputs.version }}
           path: 'solc-js'
       - name: Download Artifacts
         uses: actions/download-artifact@v1
@@ -51,7 +58,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v1
       - name: Run solc-js tests.
-        run: solidity/externalTests/solc-js/solc-js.sh upload/soljson.js ${{ needs.build_emscripten.outputs.version }}
+        run: solidity/test/externalTests/solc-js/solc-js.sh upload/soljson.js ${{ needs.build_emscripten.outputs.version }}
   publish_emscripten:
     needs: build_emscripten
     runs-on: ubuntu-latest
