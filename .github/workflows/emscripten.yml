@@ -1,0 +1,30 @@
+name: CI Tests
+
+on:
+#  push:
+#    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  build_emscripten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Fetch Docker Image
+        run: |
+          export EMSDK_VERSION=$(grep "emscripten/emsdk" scripts/docker/buildpack-deps/Dockerfile.emscripten | cut -f 2 -d ' ' | cut -f 2 -d ':')
+          export VERSION=$(grep "LABEL version=" scripts/docker/buildpack-deps/Dockerfile.emscripten  | cut -d '"' -f 2)
+          echo ${GITHUB_TOKEN} | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
+          docker pull docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION}
+          docker tag solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION} emsdk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        run: |
+          docker run -v `pwd`:/root/project -w /root/project emsdk ./scripts/travis-emscripten/build_emscripten.sh
+      - name: Store Artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: soljson
+          path: upload/
