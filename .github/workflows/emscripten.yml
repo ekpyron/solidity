@@ -9,6 +9,8 @@ on:
 jobs:
   build_emscripten:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.store-version.outputs.version }}
     steps:
       - uses: actions/checkout@v2
       - name: Fetch Docker Image
@@ -24,15 +26,38 @@ jobs:
         run: |
           docker run -v `pwd`:/root/project -w /root/project emsdk ./scripts/travis-emscripten/build_emscripten.sh
       - name: Store Version
-        run: |
-                scripts/get_version.sh
-                echo "Version: $(scripts/get_version.sh)"
-                echo "::set-output name=version::$(scripts/get_version.sh)"
+        id: store-version
+        run: echo "::set-output name=version::$(scripts/get_version.sh)"
       - name: Store Artifacts
         uses: actions/upload-artifact@v1
         with:
           name: soljson
           path: upload/
+  build_windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.0
+      - name: Install Deps
+        shell: cmd
+        run: ./scripts/install_deps.bat
+      - name: Build
+        run: |
+          set ETHEREUM_DEPS_PATH=$Env:GITHUB_WORKSPACE\deps\install
+          echo "Deps path: %ETHEREUM_DEPS_PATH%"
+          mkdir build
+          cd build
+          cmake .. -DTESTS=On -DCMAKE_INSTALL_PREFIX="../upload"
+          msbuild solidity.sln /p:Configuration=Release /v:minimal
+          cmake --build . --target install --config Release
+      - name: Pack Release
+        run: Compress-Archive -Path $Env:GITHUB_WORKSPACE\upload\* -DestinationPath solidity-windows.zip
+      - name: Store Artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: solidity-windows
+          path: solidity-windows.zip
   test_emscripten:
     needs: build_emscripten
     runs-on: ubuntu-latest
@@ -40,11 +65,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           path: 'solidity'
-      - name: Debug Output
-        run: |
-          echo ${{ needs.build_emscripten.outputs.version }}
-          echo "Version: ${{ needs.build_emscripten.outputs.version }}"
-          echo 'Version: ${{ needs.build_emscripten.outputs.version }}'
       - uses: actions/checkout@v2
         with:
           repository: 'ethereum/solc-js'
@@ -58,7 +78,9 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v1
       - name: Run solc-js tests.
-        run: solidity/test/externalTests/solc-js/solc-js.sh upload/soljson.js ${{ needs.build_emscripten.outputs.version }}
+        run: |
+          cd solidity
+          ./test/externalTests/solc-js/solc-js.sh $(pwd)/../upload/soljson.js ${{ needs.build_emscripten.outputs.version }}
   publish_emscripten:
     needs: build_emscripten
     runs-on: ubuntu-latest
@@ -76,8 +98,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v0.42.0
-          release_name: Release v0.42.0
+          tag_name: v0.42.1
+          release_name: Release v0.42.1
 #          tag_name: ${{ github.ref }}
 #          release_name: Release ${{ github.ref }}
           body: |
