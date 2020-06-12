@@ -11,6 +11,9 @@ macro (eth_policy)
 	# allow VERSION argument in project()
 	cmake_policy(SET CMP0048 NEW)
 
+	# allow <PackageName>_ROOT variables
+	cmake_policy(SET CMP0074 NEW)
+
 	if (POLICY CMP0054)
 		# do not interpret if() arguments as variables!
 		cmake_policy(SET CMP0054 NEW)
