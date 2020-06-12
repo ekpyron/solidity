@@ -64,12 +64,17 @@ jobs:
         with:
           name: solidity-windows
           path: upload
+      - name: Download evmone.
+        run: |
+          # TODO extract version from somewhere
+          mkdir evmone
+          Start-BitsTransfer -Source https://github.com/ethereum/evmone/releases/download/v0.4.1/evmone-0.4.1-windows-amd64.zip -Destination evmone\evmone.zip
+          Expand-Archive -Path evmone\evmone.zip -DestinationPath evmone
       - name: Extract Artifact
         run: Expand-Archive -Path upload/solidity-windows.zip -DestinationPath build
       - name: Run soltest
         run: |
-          # TODO fetch evmone
-          build\soltest.exe --show-progress -- --testpath test --no-smt
+          build\soltest.exe --show-progress -- --evmone-path "${env:GITHUB_WORKSPACE}\evmone\bin\evmone.dll" --testpath test --no-smt
   test_emscripten:
     needs: build_emscripten
     runs-on: ubuntu-latest
@@ -115,8 +120,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v0.42.1
-          release_name: Release v0.42.1
+          tag_name: v0.42.2
+          release_name: Release v0.42.2
 #          tag_name: ${{ github.ref }}
 #          release_name: Release ${{ github.ref }}
           body: |
