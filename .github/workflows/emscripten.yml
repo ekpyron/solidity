@@ -54,6 +54,22 @@ jobs:
         with:
           name: solidity-windows
           path: solidity-windows.zip
+  test_windows:
+    needs: build_windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: solidity-windows
+          path: upload
+      - name: Extract Artifact
+        run: Expand-Archive -Path upload/solidity-windows.zip -DestinationPath build
+      - name: Run soltest
+        run: |
+          # TODO fetch evmone
+          build\soltest.exe --show-progress -- --testpath test --no-smt
   test_emscripten:
     needs: build_emscripten
     runs-on: ubuntu-latest
@@ -66,7 +82,7 @@ jobs:
           repository: 'ethereum/solc-js'
           ref: v${{ needs.build_emscripten.outputs.version }}
           path: 'solc-js'
-      - name: Download Artifacts
+      - name: Download Artifact
         uses: actions/download-artifact@v1
         with:
           name: soljson
