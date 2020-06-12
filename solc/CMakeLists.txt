@@ -10,6 +10,12 @@ target_link_libraries(solc PRIVATE solidity Boost::boost Boost::program_options)
 include(GNUInstallDirs)
 install(TARGETS solc DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
+if(DEFINED MSVC)
+	# Install the required MSVC*.DLL libraries.
+	include(InstallRequiredSystemLibraries)
+	install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION bin COMPONENT Libraries)
+endif()
+
 if(SOLC_LINK_STATIC AND UNIX AND NOT APPLE)
 	# Produce solc as statically linked binary (includes C/C++ standard libraries)
 	# This is not supported on macOS, see

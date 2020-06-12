@@ -9,6 +9,8 @@ on:
 jobs:
   build_emscripten:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.store-version.outputs.version }}
     steps:
       - uses: actions/checkout@v2
       - name: Fetch Docker Image
@@ -17,14 +19,133 @@ jobs:
           export VERSION=$(grep "LABEL version=" scripts/docker/buildpack-deps/Dockerfile.emscripten  | cut -d '"' -f 2)
           echo ${GITHUB_TOKEN} | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
           docker pull docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION}
-          docker tag solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION} emsdk
+          docker tag docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION} emsdk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
         run: |
           docker run -v `pwd`:/root/project -w /root/project emsdk ./scripts/travis-emscripten/build_emscripten.sh
+      - name: Store Version
+        id: store-version
+        run: echo "::set-output name=version::$(scripts/get_version.sh)"
       - name: Store Artifacts
         uses: actions/upload-artifact@v1
         with:
           name: soljson
           path: upload/
+  build_windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          $env:BOOST_ROOT=$env:BOOST_ROOT_1_72_0
+          cmake .. -DTESTS=On -DCMAKE_INSTALL_PREFIX="${env:GITHUB_WORKSPACE}\upload"
+          cmake --build . --config Release
+          cmake --build . --target install --config Release
+      - name: Pack Release
+        run: |
+          Compress-Archive -Path ${env:GITHUB_WORKSPACE}\upload\bin\* -DestinationPath solidity-windows.zip
+          Compress-Archive -Path ${env:GITHUB_WORKSPACE}\build\test\Release\soltest.exe -Update -DestinationPath solidity-windows.zip
+      - name: Store Artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: solidity-windows
+          path: solidity-windows.zip
+  test_windows:
+    needs: build_windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: solidity-windows
+          path: upload
+      - name: Download evmone.
+        run: |
+          # TODO extract version from somewhere
+          mkdir evmone
+          Start-BitsTransfer -Source https://github.com/ethereum/evmone/releases/download/v0.4.1/evmone-0.4.1-windows-amd64.zip -Destination evmone\evmone.zip
+          Expand-Archive -Path evmone\evmone.zip -DestinationPath evmone
+      - name: Extract Artifact
+        run: Expand-Archive -Path upload/solidity-windows.zip -DestinationPath build
+      - name: Run soltest
+        run: |
+          build\soltest.exe --show-progress -- --evmone-path "${env:GITHUB_WORKSPACE}\evmone\bin\evmone.dll" --testpath test --no-smt
+  test_emscripten:
+    needs: build_emscripten
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: 'solidity'
+      - uses: actions/checkout@v2
+        with:
+          repository: 'ethereum/solc-js'
+          ref: v${{ needs.build_emscripten.outputs.version }}
+          path: 'solc-js'
+      - name: Download Artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: soljson
+          path: upload
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+      - name: Run solc-js tests.
+        run: |
+          cd solidity
+          ./test/externalTests/solc-js/solc-js.sh $(pwd)/../upload/soljson.js ${{ needs.build_emscripten.outputs.version }}
+  release:
+    needs: [build_emscripten, build_windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Download soljson Artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: soljson
+          path: upload
+      - name: Download solidity-windows Artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: solidity-windows
+          path: upload
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v0.42.2
+          release_name: Release v0.42.2
+#          tag_name: ${{ github.ref }}
+#          release_name: Release ${{ github.ref }}
+          body: |
+            Release Announcement Template.
+            Maybe even Changelog.
+          draft: true
+          prerelease: false
+      - name: Upload soljson.js
+        id: upload-soljson-js
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./upload/soljson.js
+          asset_name: soljson.js
+          asset_content_type: application/javascript
+      - name: Upload solidity-windows
+        id: upload-solidity-windows
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./upload/solidity-windows.zip
+          asset_name: solidity-windows.zip
+          asset_content_type: application/zip
