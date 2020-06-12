@@ -39,7 +39,7 @@ jobs:
           path: 'solidity'
       - uses: actions/checkout@v2
         with:
-          repository: 'https://github.com/ethereum/solc-js.git'
+          repository: 'ethereum/solc-js'
           ref: 'v${{ needs.build_emscripten.outputs.version }}'
           path: 'solc-js'
       - name: Download Artifacts
@@ -50,3 +50,38 @@ jobs:
         uses: actions/setup-node@v1
       - name: Run solc-js tests.
         run: solidity/externalTests/solc-js/solc-js.sh upload/soljson.js ${{ needs.build_emscripten.outputs.version }}
+  publish_emscripten:
+    needs: build_emscripten
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Download Artifacts
+        uses: actions/download-artifact@v1
+        with:
+          name: soljson
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v0.42.0
+          release_name: Release v0.42.0
+#          tag_name: ${{ github.ref }}
+#          release_name: Release ${{ github.ref }}
+          body: |
+            Release Announcement Template.
+            Maybe even Changelog.
+          draft: true
+          prerelease: false
+      - name: Upload soljson.js
+        id: upload-soljson-js 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./upload/soljson.js
+          asset_name: soljson.js
+          asset_content_type: application/javascript
