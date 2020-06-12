@@ -17,7 +17,7 @@ jobs:
           export VERSION=$(grep "LABEL version=" scripts/docker/buildpack-deps/Dockerfile.emscripten  | cut -d '"' -f 2)
           echo ${GITHUB_TOKEN} | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
           docker pull docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION}
-          docker tag solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION} emsdk
+          docker tag docker.pkg.github.com/ekpyron/solidity/solidity-buildpack-deps:emsdk-${EMSDK_VERSION}-${VERSION} emsdk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
