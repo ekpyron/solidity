@@ -37,8 +37,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.0
+#      - name: Add msbuild to PATH
+#        uses: microsoft/setup-msbuild@v1.0.0
 #      - name: Install Deps
 #        shell: cmd
 #        run: ./scripts/install_deps.bat
@@ -47,8 +47,10 @@ jobs:
           echo "Deps path: ${env:GITHUB_WORKSPACE}"
           mkdir build
           cd build
+          $env:BOOST_ROOT=$env:BOOST_ROOT_1_72_0
           cmake .. -DTESTS=On -DCMAKE_INSTALL_PREFIX="${env:GITHUB_WORKSPACE}\upload"
-          msbuild solidity.sln /p:Configuration=Release /v:minimal
+          #msbuild solidity.sln /p:Configuration=Release /v:minimal
+          cmake --build . --config Release
           cmake --build . --target install --config Release
       - name: Pack Release
         run: |
